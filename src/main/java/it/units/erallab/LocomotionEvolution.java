@@ -105,17 +105,17 @@ public class LocomotionEvolution extends Worker {
         double validationEpisodeTransientTime = d(a("validationEpisodeTransientTime", Double.toString(episodeTransientTime)));
         double videoEpisodeTime = d(a("videoEpisodeTime", "10"));
         double videoEpisodeTransientTime = d(a("videoEpisodeTransientTime", "0"));
-        int nEvals = i(a("nEvals", "100"));
+        int nEvals = i(a("nEvals", "1"));
         int seed = i(a("seed", "0"));
         String experimentName = a("expName", "short");
         List<String> terrainNames = l(a("terrain", "hilly-1-30-0"));//"hilly-1-10-rnd"));
         List<String> targetShapeNames = l(a("shape", "biped-4x3"));
         List<String> targetSensorConfigNames = l(a("sensorConfig", "high_biped-0.01-f"));
         List<String> transformationNames = l(a("transformation", "identity"));
-        //"auroraVat-(?<sigma>\\d+(\\.\\d+)?)-(?<ms>\\d+)-(?<nPop>\\d+)-(?<bs>\\d+)-(?<nc_target>\\d+)";
-        List<String> evolverNames = l(a("evolver", "auroraVat-0.1-4-1-1-10-0"));
+        //"auroraVat-(?<sigma>\\d+(\\.\\d+)?)-(?<ms>\\d+)-(?<nPop>\\d+)-(?<bs>\\d+)-(?<nc_target>\\d+)"; auroraVat-0.1-4-1-1-10-0
+        List<String> evolverNames = l(a("evolver", "ES-1-0.1"));
         //HLP-(?<type>(full|output))-(?<eta>\d+(\.\d+)?)(-(?<actFun>(tanh|sigmoid|relu)))?(-(?<seed>\d+)))?
-        List<String> mapperNames = l(a("mapper", "fixedCentralized<MLP-0.1-0-tanh"));
+        List<String> mapperNames = l(a("mapper", "fixedCentralized<HLP-full-0.1-tanh-0.1-1"));
         String lastFileName = a("lastFile", "last.txt");
         String bestFileName = a("bestFile", "best.txt");
         String allFileName = a("allFile", null);
@@ -409,7 +409,7 @@ public class LocomotionEvolution extends Worker {
         String sensorAndBodyAndHomoDistributed = "sensorAndBodyAndHomoDist-(?<fullness>\\d+(\\.\\d+)?)-(?<nSignals>\\d+)-(?<nLayers>\\d+)-(?<position>(t|f))";
         String sensorCentralized = "sensorCentralized-(?<nLayers>\\d+)";
         String mlp = "MLP-(?<ratio>\\d+(\\.\\d+)?)-(?<nLayers>\\d+)(-(?<actFun>(sin|tanh|sigmoid|relu)))?";
-        String hlp = "HLP-(?<type>(full|output))-(?<eta>\\d+(\\.\\d+)?)(-(?<actFun>(tanh|sigmoid|relu)))?(-(?<seed>\\d+))?";
+        String hlp = "HLP-(?<type>(full|output))-(?<eta>\\d+(\\.\\d+)?)(-(?<actFun>(tanh|sigmoid|relu)))-(?<ratio>\\d+(\\.\\d+)?)-(?<nLayers>\\d+)?(-(?<seed>\\d+))?";
         String pruningMlp = "pMLP-(?<ratio>\\d+(\\.\\d+)?)-(?<nLayers>\\d+)-(?<actFun>(sin|tanh|sigmoid|relu))-(?<pruningTime>\\d+(\\.\\d+)?)-(?<pruningRate>0(\\.\\d+)?)-(?<criterion>(weight|abs_signal_mean|random))";
         String directNumGrid = "directNumGrid";
         String functionNumGrid = "functionNumGrid";
@@ -499,12 +499,16 @@ public class LocomotionEvolution extends Worker {
                 return new HLPFull(
                         Double.parseDouble(params.get("eta")),
                         params.containsKey("seed") ? new Random(Integer.parseInt(params.get("seed"))) : null,
-                        params.containsKey("actFun") ? HebbianPerceptronFullModel.ActivationFunction.valueOf(params.get("actFun").toUpperCase()) : HebbianPerceptronFullModel.ActivationFunction.TANH);
+                        params.containsKey("actFun") ? HebbianPerceptronFullModel.ActivationFunction.valueOf(params.get("actFun").toUpperCase()) : HebbianPerceptronFullModel.ActivationFunction.TANH,
+                        Double.parseDouble(params.get("ratio")),
+                        Integer.parseInt(params.get("nLayers")));
             } else {
                 return new HLPOutput(
                         Double.parseDouble(params.get("eta")),
                         params.containsKey("seed") ? new Random(Integer.parseInt(params.get("seed"))) : null,
-                        params.containsKey("actFun") ? HebbianPerceptronOutputModel.ActivationFunction.valueOf(params.get("actFun").toUpperCase()) : HebbianPerceptronOutputModel.ActivationFunction.TANH);
+                        params.containsKey("actFun") ? HebbianPerceptronOutputModel.ActivationFunction.valueOf(params.get("actFun").toUpperCase()) : HebbianPerceptronOutputModel.ActivationFunction.TANH,
+                        Double.parseDouble(params.get("ratio")),
+                        Integer.parseInt(params.get("nLayers")));
 
             }
 

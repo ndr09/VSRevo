@@ -14,24 +14,44 @@ public class HLPOutput implements PrototypedFunctionBuilder<List<Double>, TimedR
     private final HebbianPerceptronOutputModel.ActivationFunction activationFunction;
     private final Random rnd;
     private final double eta;
+    private final double innerLayerRatio;
+    private final int nOfInnerLayers;
 
     public HLPOutput() {
-        this(0.1, null, HebbianPerceptronOutputModel.ActivationFunction.TANH);
+        this(0.1, null, HebbianPerceptronOutputModel.ActivationFunction.TANH, 0, 0);
     }
 
-    public HLPOutput(double eta, Random rnd, HebbianPerceptronOutputModel.ActivationFunction activationFunction) {
+    public HLPOutput(double eta, Random rnd, HebbianPerceptronOutputModel.ActivationFunction activationFunction, double innerLayerRatio, int nOfInnerLayers) {
         this.activationFunction = activationFunction;
         this.rnd = rnd;
         this.eta = eta;
+        this.innerLayerRatio = innerLayerRatio;
+        this.nOfInnerLayers = nOfInnerLayers;
     }
 
+    private int[] innerNeurons(int nOfInputs, int nOfOutputs) {
+        int[] innerNeurons = new int[nOfInnerLayers];
+        int centerSize = (int) Math.max(2, Math.round(nOfInputs * innerLayerRatio));
+        if (nOfInnerLayers > 1) {
+            for (int i = 0; i < nOfInnerLayers / 2; i++) {
+                innerNeurons[i] = nOfInputs + (centerSize - nOfInputs) / (nOfInnerLayers / 2 + 1) * (i + 1);
+            }
+            for (int i = nOfInnerLayers / 2; i < nOfInnerLayers; i++) {
+                innerNeurons[i] = centerSize + (nOfOutputs - centerSize) / (nOfInnerLayers / 2 + 1) * (i - nOfInnerLayers / 2);
+            }
+        } else if (nOfInnerLayers > 0) {
+            innerNeurons[0] = centerSize;
+        }
+        return innerNeurons;
+    }
 
     @Override
     public Function<List<Double>, TimedRealFunction> buildFor(TimedRealFunction function) {
         return values -> {
             int nOfInputs = function.getInputDimension();
             int nOfOutputs = function.getOutputDimension();
-            int nOfWeights = HebbianPerceptronOutputModel.countHebbCoef(nOfInputs, new int[]{}, nOfOutputs);
+            int[] innerNeurons = innerNeurons(nOfInputs, nOfOutputs);
+            int nOfWeights = HebbianPerceptronOutputModel.countHebbCoef(nOfInputs, innerNeurons, nOfOutputs);
             if (nOfWeights != values.size()) {
                 throw new IllegalArgumentException(String.format(
                         "Wrong number of values for weights: %d expected, %d found",
@@ -42,7 +62,7 @@ public class HLPOutput implements PrototypedFunctionBuilder<List<Double>, TimedR
             return new HebbianPerceptronOutputModel(
                     activationFunction,
                     nOfInputs,
-                    new int[]{},
+                    innerNeurons,
                     nOfOutputs,
                     values.stream().mapToDouble(d -> d).toArray(),
                     eta,
@@ -55,10 +75,11 @@ public class HLPOutput implements PrototypedFunctionBuilder<List<Double>, TimedR
 
     @Override
     public List<Double> exampleFor(TimedRealFunction function) {
+        int[] innerNeurons = innerNeurons(function.getInputDimension(), function.getOutputDimension());
         return Collections.nCopies(
                 HebbianPerceptronOutputModel.countHebbCoef(
                         function.getInputDimension(),
-                        new int[]{},
+                        innerNeurons,
                         function.getOutputDimension()
                 ),
                 0d

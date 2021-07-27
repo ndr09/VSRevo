@@ -13,18 +13,36 @@ public class HLPFull implements PrototypedFunctionBuilder<List<Double>, TimedRea
     private final HebbianPerceptronFullModel.ActivationFunction activationFunction;
     private final Random rnd;
     private final double eta;
-
+    private final double innerLayerRatio;
+    private final int nOfInnerLayers;
 
     public HLPFull() {
-        this(0.1, null, HebbianPerceptronFullModel.ActivationFunction.TANH);
+        this(0.1, null, HebbianPerceptronFullModel.ActivationFunction.TANH,0,0);
     }
 
-    public HLPFull(double eta, Random rnd, HebbianPerceptronFullModel.ActivationFunction activationFunction) {
+    public HLPFull(double eta, Random rnd, HebbianPerceptronFullModel.ActivationFunction activationFunction, double innerLayerRatio, int nOfInnerLayers) {
         this.activationFunction = activationFunction;
         this.rnd = rnd;
         this.eta = eta;
+        this.innerLayerRatio = innerLayerRatio;
+        this.nOfInnerLayers = nOfInnerLayers;
     }
 
+    private int[] innerNeurons(int nOfInputs, int nOfOutputs) {
+        int[] innerNeurons = new int[nOfInnerLayers];
+        int centerSize = (int) Math.max(2, Math.round(nOfInputs * innerLayerRatio));
+        if (nOfInnerLayers > 1) {
+            for (int i = 0; i < nOfInnerLayers / 2; i++) {
+                innerNeurons[i] = nOfInputs + (centerSize - nOfInputs) / (nOfInnerLayers / 2 + 1) * (i + 1);
+            }
+            for (int i = nOfInnerLayers / 2; i < nOfInnerLayers; i++) {
+                innerNeurons[i] = centerSize + (nOfOutputs - centerSize) / (nOfInnerLayers / 2 + 1) * (i - nOfInnerLayers / 2);
+            }
+        } else if (nOfInnerLayers > 0) {
+            innerNeurons[0] = centerSize;
+        }
+        return innerNeurons;
+    }
 
     @Override
     public Function<List<Double>, TimedRealFunction> buildFor(TimedRealFunction function) {
@@ -33,8 +51,8 @@ public class HLPFull implements PrototypedFunctionBuilder<List<Double>, TimedRea
             //System.out.println(function);
             int nOfInputs = function.getInputDimension();
             int nOfOutputs = function.getOutputDimension();
-            System.out.println("size " + values.size());
-            int nOfWeights = HebbianPerceptronFullModel.countHebbCoef(nOfInputs, new int[]{}, nOfOutputs);
+            int[] innerNeurons = innerNeurons(nOfInputs, nOfOutputs);
+            int nOfWeights = HebbianPerceptronFullModel.countHebbCoef(nOfInputs, innerNeurons, nOfOutputs);
             if (nOfWeights != values.size()) {
                 throw new IllegalArgumentException(String.format(
                         "Wrong number of values for weights: %d expected, %d found",
@@ -45,7 +63,7 @@ public class HLPFull implements PrototypedFunctionBuilder<List<Double>, TimedRea
             return new HebbianPerceptronFullModel(
                     activationFunction,
                     nOfInputs,
-                    new int[]{},
+                    innerNeurons,
                     nOfOutputs,
                     values.stream().mapToDouble(d -> d).toArray(),
                     eta,
@@ -61,7 +79,7 @@ public class HLPFull implements PrototypedFunctionBuilder<List<Double>, TimedRea
         return Collections.nCopies(
                 HebbianPerceptronFullModel.countHebbCoef(
                         function.getInputDimension(),
-                        new int[]{},
+                        innerNeurons(function.getInputDimension(),function.getOutputDimension()),
                         function.getOutputDimension()),
                 0d
         );
