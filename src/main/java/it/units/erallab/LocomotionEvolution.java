@@ -115,11 +115,11 @@ public class LocomotionEvolution extends Worker {
         //"auroraVat-(?<sigma>\\d+(\\.\\d+)?)-(?<ms>\\d+)-(?<nPop>\\d+)-(?<bs>\\d+)-(?<nc_target>\\d+)"; auroraVat-0.1-4-1-1-10-0
         List<String> evolverNames = l(a("evolver", "ES-1-0.1"));
         //HLP-(?<type>(full|output))-(?<eta>\d+(\.\d+)?)(-(?<actFun>(tanh|sigmoid|relu)))?(-(?<seed>\d+)))?
-        List<String> mapperNames = l(a("mapper", "fixedCentralized<HLP-full-0.1-tanh-0.1-1"));
+        List<String> mapperNames = l(a("mapper", "fixedCentralized<HLP-output-0.1-tanh-0.1-1"));
         String lastFileName = a("lastFile", "last.txt");
         String bestFileName = a("bestFile", "best.txt");
-        String allFileName = a("allFile", null);
-        String allMEFileName = a("allMEFile", "testing.txt");
+        String allFileName = a("allFile", "all.txt");
+        String allMEFileName = a("allMEFile", null);
         String validationFileName = a("validationFile", "val.txt");
         boolean deferred = a("deferred", "true").startsWith("t");
         String telegramBotId = a("telegramBotId", null);
@@ -185,8 +185,8 @@ public class LocomotionEvolution extends Worker {
                             Misc.concat(List.of(
                                     NamedFunction.then(f("event", Pair::first), keysFunctions),
                                     NamedFunction.then(f("event", Pair::first), basicFunctions),
-                                    NamedFunction.then(f("individual", Pair::second), basicIndividualFunctions)
-                                    //NamedFunction.then(f("individual", Pair::second), Utils.serializationFunction(serializationFlags.contains("all")))
+                                    NamedFunction.then(f("individual", Pair::second), basicIndividualFunctions),
+                                    NamedFunction.then(f("individual", Pair::second), Utils.serializationFunction(serializationFlags.contains("all")))
                             )),
                             new File(allFileName)
                     )
