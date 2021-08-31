@@ -25,6 +25,7 @@ import it.units.erallab.builder.PrototypedFunctionBuilder;
 import it.units.erallab.builder.evolver.*;
 import it.units.erallab.builder.phenotype.*;
 import it.units.erallab.builder.robot.*;
+import it.units.erallab.hmsrobots.Pyworker;
 import it.units.erallab.hmsrobots.core.controllers.HebbianPerceptronFullModel;
 import it.units.erallab.hmsrobots.core.controllers.HebbianPerceptronOutputModel;
 import it.units.erallab.hmsrobots.core.controllers.MultiLayerPerceptron;
@@ -35,21 +36,19 @@ import it.units.erallab.hmsrobots.tasks.locomotion.Outcome;
 import it.units.erallab.hmsrobots.util.RobotUtils;
 import it.units.malelab.jgea.Worker;
 import it.units.malelab.jgea.core.Individual;
-import it.units.malelab.jgea.core.evolver.Event;
+import it.units.malelab.jgea.core.evolver.AuroraVAT;
 import it.units.malelab.jgea.core.evolver.Event;
 import it.units.malelab.jgea.core.evolver.Evolver;
-import it.units.malelab.jgea.core.evolver.MapElitesEvolver;
 import it.units.malelab.jgea.core.evolver.stopcondition.FitnessEvaluations;
 import it.units.malelab.jgea.core.listener.*;
 import it.units.malelab.jgea.core.listener.telegram.TelegramUpdater;
-import it.units.malelab.jgea.core.operator.Mutation;
-import it.units.malelab.jgea.core.order.MapElites;
 import it.units.malelab.jgea.core.order.PartialComparator;
 import it.units.malelab.jgea.core.util.Misc;
 import it.units.malelab.jgea.core.util.Pair;
 import it.units.malelab.jgea.core.util.SequentialFunction;
 import it.units.malelab.jgea.core.util.TextPlotter;
 import it.units.malelab.jgea.representation.sequence.numeric.GaussianMutation;
+
 import org.dyn4j.dynamics.Settings;
 
 import java.io.File;
@@ -99,26 +98,29 @@ public class LocomotionEvolution extends Worker {
         int spectrumSize = 2;
         double spectrumMinFreq = 0d;
         double spectrumMaxFreq = 5d;
-        double episodeTime = d(a("episodeTime", "1"));
+        double episodeTime = d(a("episodeTime", "60"));
         double episodeTransientTime = d(a("episodeTransientTime", "0"));
         double validationEpisodeTime = d(a("validationEpisodeTime", Double.toString(episodeTime)));
         double validationEpisodeTransientTime = d(a("validationEpisodeTransientTime", Double.toString(episodeTransientTime)));
         double videoEpisodeTime = d(a("videoEpisodeTime", "10"));
         double videoEpisodeTransientTime = d(a("videoEpisodeTransientTime", "0"));
-        int nEvals = i(a("nEvals", "1"));
+        int nEvals = i(a("nEvals", "8"));
         int seed = i(a("seed", "0"));
         String experimentName = a("expName", "short");
-        List<String> terrainNames = l(a("terrain", "hilly-1-30-0"));//"hilly-1-10-rnd"));
+        List<String> terrainNames = l(a("terrain", "hilly-3-30-0"));//"hilly-1-10-rnd"));
         List<String> targetShapeNames = l(a("shape", "biped-4x3"));
         List<String> targetSensorConfigNames = l(a("sensorConfig", "high_biped-0.01-f"));
         List<String> transformationNames = l(a("transformation", "identity"));
         //"auroraVat-(?<sigma>\\d+(\\.\\d+)?)-(?<ms>\\d+)-(?<nPop>\\d+)-(?<bs>\\d+)-(?<nc_target>\\d+)"; auroraVat-0.1-4-1-1-10-0
-        List<String> evolverNames = l(a("evolver", "ES-1-0.1"));
+        //ES-40-0.35  auroraVat-0.1-4-1-1-1-0 auroraVat-0.1-2-1-1-1-0-robot_center
+        List<String> evolverNames = l(a("evolver", "ES-4-0.35"));
         //HLP-(?<type>(full|output))-(?<eta>\d+(\.\d+)?)(-(?<actFun>(tanh|sigmoid|relu)))?(-(?<seed>\d+)))?
-        List<String> mapperNames = l(a("mapper", "fixedCentralized<HLP-output-0.1-tanh-0.1-1"));
-        String lastFileName = a("lastFile", "last.txt");
-        String bestFileName = a("bestFile", "best.txt");
-        String allFileName = a("allFile", "all.txt");
+        //HLP-(?<type>(full|output))-(?<eta>\\d+(\\.\\d+)?)(-(?<actFun>(tanh|sigmoid|relu)))-(?<ratio>\\d+(\\.\\d+)?)-(?<nLayers>\\d+)?(-(?<seed>\\d+))
+        //HLP-(?<type>(full|output))-(?<eta>\\d+(\\.\\d+)?)(-(?<actFun>(tanh|sigmoid|relu)))-(?<ratio>\\d+(\\.\\d+)?)-(?<nLayers>\\d+)?(-(?<min>\\d+(\\.\\d+)?))?(-(?<max>\\d+(\\.\\d+)?))?(-(?<seed>\\d+))";
+        List<String> mapperNames = l(a("mapper", "fixedCentralized<HLP-full-0.1-tanh-1-1--1--2-2"));
+        String lastFileName = a("lastFile", null);
+        String bestFileName = a("bestFile", null);
+        String allFileName = a("allFile", null);
         String allMEFileName = a("allMEFile", null);
         String validationFileName = a("validationFile", "val.txt");
         boolean deferred = a("deferred", "true").startsWith("t");
@@ -127,7 +129,8 @@ public class LocomotionEvolution extends Worker {
         List<String> serializationFlags = l(a("serialization", "last,best,all")); //last,best,all
         boolean output = a("output", "false").startsWith("t");
         List<String> validationTransformationNames = l(a("validationTransformation", "")).stream().filter(s -> !s.isEmpty()).collect(Collectors.toList());
-        List<String> validationTerrainNames = l(a("validationTerrain", "flat,downhill-30")).stream().filter(s -> !s.isEmpty()).collect(Collectors.toList());
+        //"flat,downhill-10,uphill-10,hilly-3-10-0,hilly-3-10-1,hilly-3-10-2,hilly-3-10-3,hilly-3-10-4,steppy-3-10-0,steppy-3-10-1,steppy-3-10-2,steppy-3-10-3,steppy-3-10-4"
+        List<String> validationTerrainNames = l(a("validationTerrain", "")).stream().filter(s -> !s.isEmpty()).collect(Collectors.toList());
         Function<Outcome, Double> fitnessFunction = Outcome::getVelocity;
         //consumers
         List<NamedFunction<Event<?, ? extends Robot<?>, ? extends Outcome>, ?>> keysFunctions = Utils.keysFunctions();
@@ -141,6 +144,10 @@ public class LocomotionEvolution extends Worker {
         List<NamedFunction<Outcome, ?>> visualOutcomeFunctions = Utils.visualOutcomeFunctions(spectrumMinFreq, spectrumMaxFreq);
         Listener.Factory<Event<?, ? extends Robot<?>, ? extends Outcome>> factory = Listener.Factory.deaf();
         //screen listener
+
+
+
+
         if (bestFileName == null || output) {
             factory = factory.and(new TabularPrinter<>(Misc.concat(List.of(
                     basicFunctions,
@@ -208,6 +215,22 @@ public class LocomotionEvolution extends Worker {
                     )
             ));
         }
+        /*if (allMEFileName != null) {
+            factory = factory.and(Listener.Factory.forEach(
+                    event -> event.getRemovedPop().all().stream()
+                            .map(i -> Pair.of(event, i))
+                            .collect(Collectors.toList()),
+                    new CSVPrinter<>(
+                            Misc.concat(List.of(
+                                    NamedFunction.then(f("event", Pair::first), keysFunctions),
+                                    NamedFunction.then(f("event", Pair::first), basicFunctions),
+                                    NamedFunction.then(f("individual", Pair::second), basicIndividualFunctions),
+                                    NamedFunction.then(f("individual", Pair::second), Utils.serializationFunction(serializationFlags.contains("all")))
+                            )),
+                            new File("removed.txt")
+                    )
+            ));
+        }*/
         //validation listener
         if (validationFileName != null) {
             if (!validationTerrainNames.isEmpty() && validationTransformationNames.isEmpty()) {
@@ -261,6 +284,11 @@ public class LocomotionEvolution extends Worker {
         //start iterations
         int nOfRuns = terrainNames.size() * targetShapeNames.size() * targetSensorConfigNames.size() * mapperNames.size() * transformationNames.size() * evolverNames.size();
         int counter = 0;
+        int c=0;
+        for (String mn: mapperNames){
+            mapperNames.set(c,mn.replace(":","<"));
+            c++;
+        }
         for (String terrainName : terrainNames) {
             for (String targetShapeName : targetShapeNames) {
                 for (String targetSensorConfigName : targetSensorConfigNames) {
@@ -347,7 +375,7 @@ public class LocomotionEvolution extends Worker {
         String numGASpeciated = "numGASpec-(?<nPop>\\d+)-(?<nSpecies>\\d+)-(?<criterion>(" + Arrays.stream(DoublesSpeciated.SpeciationCriterion.values()).map(c -> c.name().toLowerCase(Locale.ROOT)).collect(Collectors.joining("|")) + "))";
         String cmaES = "CMAES";
         String mapElites = "mapElites-(?<sigma>\\d+(\\.\\d+)?)-(?<ms>\\d+)-(?<nPop>\\d+)-(?<bs>\\d+)-(?<criterion>(" + Arrays.stream(DoublesSpeciated.SpeciationCriterion.values()).map(c -> c.name().toLowerCase(Locale.ROOT)).collect(Collectors.joining("|")) + "))";
-        String auroraVat = "auroraVat-(?<sigma>\\d+(\\.\\d+)?)-(?<ms>\\d+)-(?<nPop>\\d+)-(?<bs>\\d+)-(?<nctarget>\\d+)-(?<seed>\\d+)";
+        String auroraVat = "auroraVat-(?<sigma>\\d+(\\.\\d+)?)-(?<ms>\\d+)-(?<nPop>\\d+)-(?<bs>\\d+)-(?<nctarget>\\d+)-(?<seed>\\d+)-(?<criterion>(robot_center|voxels_center|knn))";
         String eS = "ES-(?<nPop>\\d+)-(?<sigma>\\d+(\\.\\d+)?)";
         Map<String, String> params;
 
@@ -357,7 +385,8 @@ public class LocomotionEvolution extends Worker {
                     Integer.parseInt(params.get("nPop")),
                     Integer.parseInt(params.get("bs")),
                     Integer.parseInt(params.get("nctarget")),
-                    Integer.parseInt(params.get("seed")));
+                    Integer.parseInt(params.get("seed")),
+                    AuroraVatBuilder.CentertCriterion.valueOf(params.get("criterion").toUpperCase()));
         }
 
         if ((params = params(mapElites, name)) != null) {
@@ -409,7 +438,7 @@ public class LocomotionEvolution extends Worker {
         String sensorAndBodyAndHomoDistributed = "sensorAndBodyAndHomoDist-(?<fullness>\\d+(\\.\\d+)?)-(?<nSignals>\\d+)-(?<nLayers>\\d+)-(?<position>(t|f))";
         String sensorCentralized = "sensorCentralized-(?<nLayers>\\d+)";
         String mlp = "MLP-(?<ratio>\\d+(\\.\\d+)?)-(?<nLayers>\\d+)(-(?<actFun>(sin|tanh|sigmoid|relu)))?";
-        String hlp = "HLP-(?<type>(full|output))-(?<eta>\\d+(\\.\\d+)?)(-(?<actFun>(tanh|sigmoid|relu)))-(?<ratio>\\d+(\\.\\d+)?)-(?<nLayers>\\d+)?(-(?<seed>\\d+))?";
+        String hlp = "HLP-(?<type>(full|output))-(?<eta>\\d+(\\.\\d+)?)(-(?<actFun>(tanh|sigmoid|relu)))-(?<ratio>\\d+(\\.\\d+)?)-(?<nLayers>\\d+)-(?<seed>-?\\d+)?(-(?<min>-?\\d+(\\.\\d+)?))?(-(?<max>\\d+(\\.\\d+)?))";
         String pruningMlp = "pMLP-(?<ratio>\\d+(\\.\\d+)?)-(?<nLayers>\\d+)-(?<actFun>(sin|tanh|sigmoid|relu))-(?<pruningTime>\\d+(\\.\\d+)?)-(?<pruningRate>0(\\.\\d+)?)-(?<criterion>(weight|abs_signal_mean|random))";
         String directNumGrid = "directNumGrid";
         String functionNumGrid = "functionNumGrid";
@@ -498,17 +527,20 @@ public class LocomotionEvolution extends Worker {
             if (params.get("type").equals("full")) {
                 return new HLPFull(
                         Double.parseDouble(params.get("eta")),
-                        params.containsKey("seed") ? new Random(Integer.parseInt(params.get("seed"))) : null,
+                        Integer.parseInt(params.get("seed")) != -1 ? new Random(Integer.parseInt(params.get("seed"))) : null,
                         params.containsKey("actFun") ? HebbianPerceptronFullModel.ActivationFunction.valueOf(params.get("actFun").toUpperCase()) : HebbianPerceptronFullModel.ActivationFunction.TANH,
                         Double.parseDouble(params.get("ratio")),
-                        Integer.parseInt(params.get("nLayers")));
+                        Integer.parseInt(params.get("nLayers")),
+                        params.containsKey("min") && params.containsKey("max") ? new double[]{Double.parseDouble(params.get("min")),Double.parseDouble(params.get("max")) } : null);
             } else {
                 return new HLPOutput(
                         Double.parseDouble(params.get("eta")),
-                        params.containsKey("seed") ? new Random(Integer.parseInt(params.get("seed"))) : null,
+                        Integer.parseInt(params.get("seed")) != -1 ? new Random(Integer.parseInt(params.get("seed"))) : null,
                         params.containsKey("actFun") ? HebbianPerceptronOutputModel.ActivationFunction.valueOf(params.get("actFun").toUpperCase()) : HebbianPerceptronOutputModel.ActivationFunction.TANH,
                         Double.parseDouble(params.get("ratio")),
-                        Integer.parseInt(params.get("nLayers")));
+                        Integer.parseInt(params.get("nLayers")),
+                        params.containsKey("min") && params.containsKey("max") ? new double[]{Double.parseDouble(params.get("min").replace("n","-")),Double.parseDouble(params.get("max")) } : null
+                        );
 
             }
 

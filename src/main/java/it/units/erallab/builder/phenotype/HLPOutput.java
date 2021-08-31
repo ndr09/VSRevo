@@ -16,17 +16,19 @@ public class HLPOutput implements PrototypedFunctionBuilder<List<Double>, TimedR
     private final double eta;
     private final double innerLayerRatio;
     private final int nOfInnerLayers;
+    private final double[] norm;
 
     public HLPOutput() {
-        this(0.1, null, HebbianPerceptronOutputModel.ActivationFunction.TANH, 0, 0);
+        this(0.1, null, HebbianPerceptronOutputModel.ActivationFunction.TANH, 0, 0, null);
     }
 
-    public HLPOutput(double eta, Random rnd, HebbianPerceptronOutputModel.ActivationFunction activationFunction, double innerLayerRatio, int nOfInnerLayers) {
+    public HLPOutput(double eta, Random rnd, HebbianPerceptronOutputModel.ActivationFunction activationFunction, double innerLayerRatio, int nOfInnerLayers, double[] norm) {
         this.activationFunction = activationFunction;
         this.rnd = rnd;
         this.eta = eta;
         this.innerLayerRatio = innerLayerRatio;
         this.nOfInnerLayers = nOfInnerLayers;
+        this.norm =norm;
     }
 
     private int[] innerNeurons(int nOfInputs, int nOfOutputs) {
@@ -68,7 +70,8 @@ public class HLPOutput implements PrototypedFunctionBuilder<List<Double>, TimedR
                     eta,
                     rnd,
                     new HashSet<Integer>(),
-                    new HashMap<Integer, Integer>());
+                    new HashMap<Integer, Integer>(),
+                    norm);
         };
     }
 

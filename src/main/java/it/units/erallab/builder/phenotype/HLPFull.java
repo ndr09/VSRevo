@@ -15,17 +15,19 @@ public class HLPFull implements PrototypedFunctionBuilder<List<Double>, TimedRea
     private final double eta;
     private final double innerLayerRatio;
     private final int nOfInnerLayers;
+    private final double[] norm;
 
     public HLPFull() {
-        this(0.1, null, HebbianPerceptronFullModel.ActivationFunction.TANH,0,0);
+        this(0.1, null, HebbianPerceptronFullModel.ActivationFunction.TANH,0,0, null);
     }
 
-    public HLPFull(double eta, Random rnd, HebbianPerceptronFullModel.ActivationFunction activationFunction, double innerLayerRatio, int nOfInnerLayers) {
+    public HLPFull(double eta, Random rnd, HebbianPerceptronFullModel.ActivationFunction activationFunction, double innerLayerRatio, int nOfInnerLayers, double[] norm) {
         this.activationFunction = activationFunction;
         this.rnd = rnd;
         this.eta = eta;
         this.innerLayerRatio = innerLayerRatio;
         this.nOfInnerLayers = nOfInnerLayers;
+        this.norm = norm;
     }
 
     private int[] innerNeurons(int nOfInputs, int nOfOutputs) {
@@ -69,7 +71,8 @@ public class HLPFull implements PrototypedFunctionBuilder<List<Double>, TimedRea
                     eta,
                     rnd,
                     new HashSet<Integer>(),
-                    new HashMap<Integer, Integer>());
+                    new HashMap<Integer, Integer>(),
+                    norm);
         };
     }
 

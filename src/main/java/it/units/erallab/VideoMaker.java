@@ -33,9 +33,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.dyn4j.dynamics.Settings;
 
 import java.io.*;
-import java.util.List;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -53,15 +51,15 @@ public class VideoMaker {
 
   public static void main(String[] args) {
     //get params
-    String inputFileName = a(args, "inputFile", "video_hilly3");
-    String outputFileName = a(args, "outputFile", "cmaes_hilly.mp4");
+    String inputFileName = a(args, "inputFile", "vid.txt");
+    String outputFileName = a(args, "outputFile", "pca.mp4");
     String serializedRobotColumn = a(args, "serializedRobotColumnName", "best.serialized.robot");
     String terrainName = a(args, "terrain", "hilly-3-30-0");
     String transformationName = a(args, "transformation", "identity");
     double startTime = d(a(args, "startTime", "0.0"));
     double endTime = d(a(args, "endTime", "60.0"));
-    int w = i(a(args, "w", "600"));
-    int h = i(a(args, "h", "400"));
+    int w = i(a(args, "w", "400"));
+    int h = i(a(args, "h", "300"));
     int frameRate = i(a(args, "frameRate", "30"));
     String encoderName = a(args, "encoder", VideoUtils.EncoderFacility.JCODEC.name());
     SerializationUtils.Mode mode = SerializationUtils.Mode.valueOf(a(args, "deserializationMode", SerializationUtils.Mode.GZIPPED_JSON.name()).toUpperCase());

@@ -116,7 +116,9 @@ public class Utils {
             }
             return Arrays.toString(y).replace(" ", "");
         };
-
+        NamedFunction<Outcome, String> aDesc = o -> {
+            return Arrays.toString(o.getDesc()).replace(" ", "");
+        };
         return List.of(
                 f("w", "%2d", (Function<Grid<?>, Number>) Grid::getW)
                         .of(f("shape", (Function<Robot<?>, Grid<?>>) Robot::getVoxels))
@@ -131,6 +133,7 @@ public class Utils {
                 genotypeBirthIteration(),
                 f("mapElites.x", "%s", mapx).of(fitness()),
                 f("mapElites.y", "%s", mapy).of(fitness()),
+                f("auroraDesc","%s", aDesc).of(fitness()),
                 f("fitness", "%5.1f", fitnessFunction).of(fitness())
         );
     }

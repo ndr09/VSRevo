@@ -4,6 +4,7 @@ import it.units.erallab.builder.PrototypedFunctionBuilder;
 import it.units.erallab.hmsrobots.tasks.locomotion.Outcome;
 import it.units.malelab.jgea.core.Individual;
 import it.units.malelab.jgea.core.evolver.Evolver;
+//import it.units.malelab.jgea.core.evolver.MapElitesEvolver;
 import it.units.malelab.jgea.core.evolver.MapElitesEvolver;
 import it.units.malelab.jgea.core.operator.Mutation;
 import it.units.malelab.jgea.core.order.PartialComparator;
@@ -99,15 +100,14 @@ public class MapElitesBuilder implements EvolverBuilder<List<Double>> {
             sizes.add(map_size);
         }
         maxs.add(1d);
-        maxs.add(10d);
+        maxs.add(5d);
         maxs.add(1d);
-        maxs.add(21d);
+        maxs.add(3d);
 
         mins.add(0d);
         mins.add(0d);
         mins.add(0d);
         mins.add(0d);
-
         return new MapElitesEvolver<>(
                 descriptor,
                 maxs, mins, sizes,

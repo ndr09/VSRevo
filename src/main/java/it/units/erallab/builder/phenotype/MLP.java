@@ -52,7 +52,6 @@ public class MLP implements PrototypedFunctionBuilder<List<Double>, TimedRealFun
       int nOfOutputs = function.getOutputDimension();
       int[] innerNeurons = innerNeurons(nOfInputs, nOfOutputs);
       int nOfWeights = MultiLayerPerceptron.countWeights(nOfInputs, innerNeurons, nOfOutputs);
-      System.out.println(nOfWeights);
       if (nOfWeights != values.size()) {
         throw new IllegalArgumentException(String.format(
             "Wrong number of values for weights: %d expected, %d found",
