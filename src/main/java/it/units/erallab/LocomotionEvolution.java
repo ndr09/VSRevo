@@ -27,7 +27,7 @@ import it.units.erallab.builder.phenotype.*;
 import it.units.erallab.builder.robot.*;
 import it.units.erallab.hmsrobots.Pyworker;
 import it.units.erallab.hmsrobots.core.controllers.HebbianPerceptronFullModel;
-import it.units.erallab.hmsrobots.core.controllers.HebbianPerceptronOutputModel;
+import it.units.erallab.hmsrobots.core.controllers.HebbianMultilayerPerceptronIncomingModel;
 import it.units.erallab.hmsrobots.core.controllers.MultiLayerPerceptron;
 import it.units.erallab.hmsrobots.core.controllers.PruningMultiLayerPerceptron;
 import it.units.erallab.hmsrobots.core.objects.Robot;
@@ -104,7 +104,7 @@ public class LocomotionEvolution extends Worker {
         double validationEpisodeTransientTime = d(a("validationEpisodeTransientTime", Double.toString(episodeTransientTime)));
         double videoEpisodeTime = d(a("videoEpisodeTime", "10"));
         double videoEpisodeTransientTime = d(a("videoEpisodeTransientTime", "0"));
-        int nEvals = i(a("nEvals", "8"));
+        int nEvals = i(a("nEvals", "2"));
         int seed = i(a("seed", "0"));
         String experimentName = a("expName", "short");
         List<String> terrainNames = l(a("terrain", "hilly-3-30-0"));//"hilly-1-10-rnd"));
@@ -113,7 +113,7 @@ public class LocomotionEvolution extends Worker {
         List<String> transformationNames = l(a("transformation", "identity"));
         //"auroraVat-(?<sigma>\\d+(\\.\\d+)?)-(?<ms>\\d+)-(?<nPop>\\d+)-(?<bs>\\d+)-(?<nc_target>\\d+)"; auroraVat-0.1-4-1-1-10-0
         //ES-40-0.35  auroraVat-0.1-4-1-1-1-0 auroraVat-0.1-2-1-1-1-0-robot_center
-        List<String> evolverNames = l(a("evolver", "ES-4-0.35"));
+        List<String> evolverNames = l(a("evolver", "mewe-0.1-1-1-1-spectrum"));
         //HLP-(?<type>(full|output))-(?<eta>\d+(\.\d+)?)(-(?<actFun>(tanh|sigmoid|relu)))?(-(?<seed>\d+)))?
         //HLP-(?<type>(full|output))-(?<eta>\\d+(\\.\\d+)?)(-(?<actFun>(tanh|sigmoid|relu)))-(?<ratio>\\d+(\\.\\d+)?)-(?<nLayers>\\d+)?(-(?<seed>\\d+))
         //HLP-(?<type>(full|output))-(?<eta>\\d+(\\.\\d+)?)(-(?<actFun>(tanh|sigmoid|relu)))-(?<ratio>\\d+(\\.\\d+)?)-(?<nLayers>\\d+)?(-(?<min>\\d+(\\.\\d+)?))?(-(?<max>\\d+(\\.\\d+)?))?(-(?<seed>\\d+))";
@@ -215,7 +215,8 @@ public class LocomotionEvolution extends Worker {
                     )
             ));
         }
-        /*if (allMEFileName != null) {
+
+        if (allMEFileName != null) {
             factory = factory.and(Listener.Factory.forEach(
                     event -> event.getRemovedPop().all().stream()
                             .map(i -> Pair.of(event, i))
@@ -227,10 +228,10 @@ public class LocomotionEvolution extends Worker {
                                     NamedFunction.then(f("individual", Pair::second), basicIndividualFunctions),
                                     NamedFunction.then(f("individual", Pair::second), Utils.serializationFunction(serializationFlags.contains("all")))
                             )),
-                            new File("removed.txt")
+                            new File(allMEFileName.split("\\.")[0]+"_secondPops.txt")
                     )
             ));
-        }*/
+        }
         //validation listener
         if (validationFileName != null) {
             if (!validationTerrainNames.isEmpty() && validationTransformationNames.isEmpty()) {
@@ -375,6 +376,8 @@ public class LocomotionEvolution extends Worker {
         String numGASpeciated = "numGASpec-(?<nPop>\\d+)-(?<nSpecies>\\d+)-(?<criterion>(" + Arrays.stream(DoublesSpeciated.SpeciationCriterion.values()).map(c -> c.name().toLowerCase(Locale.ROOT)).collect(Collectors.joining("|")) + "))";
         String cmaES = "CMAES";
         String mapElites = "mapElites-(?<sigma>\\d+(\\.\\d+)?)-(?<ms>\\d+)-(?<nPop>\\d+)-(?<bs>\\d+)-(?<criterion>(" + Arrays.stream(DoublesSpeciated.SpeciationCriterion.values()).map(c -> c.name().toLowerCase(Locale.ROOT)).collect(Collectors.joining("|")) + "))";
+        String mewe = "mewe-(?<sigma>\\d+(\\.\\d+)?)-(?<ms>\\d+)-(?<nPop>\\d+)-(?<bs>\\d+)-(?<criterion>(" + Arrays.stream(DoublesSpeciated.SpeciationCriterion.values()).map(c -> c.name().toLowerCase(Locale.ROOT)).collect(Collectors.joining("|")) + "))";
+
         String auroraVat = "auroraVat-(?<sigma>\\d+(\\.\\d+)?)-(?<ms>\\d+)-(?<nPop>\\d+)-(?<bs>\\d+)-(?<nctarget>\\d+)-(?<seed>\\d+)-(?<criterion>(robot_center|voxels_center|knn))";
         String eS = "ES-(?<nPop>\\d+)-(?<sigma>\\d+(\\.\\d+)?)";
         Map<String, String> params;
@@ -391,6 +394,15 @@ public class LocomotionEvolution extends Worker {
 
         if ((params = params(mapElites, name)) != null) {
             return new MapElitesBuilder(
+                    MapElitesBuilder.SpeciationCriterion.valueOf(params.get("criterion").toUpperCase()),
+                    new GaussianMutation(Double.parseDouble(params.get("sigma"))),
+                    Integer.parseInt(params.get("ms")),
+                    Integer.parseInt(params.get("nPop")),
+                    Integer.parseInt(params.get("bs")));
+        }
+
+        if ((params = params(mewe, name)) != null) {
+            return new MapElitesWithEvolvabiltyBuilder(
                     MapElitesBuilder.SpeciationCriterion.valueOf(params.get("criterion").toUpperCase()),
                     new GaussianMutation(Double.parseDouble(params.get("sigma"))),
                     Integer.parseInt(params.get("ms")),
@@ -536,7 +548,7 @@ public class LocomotionEvolution extends Worker {
                 return new HLPOutput(
                         Double.parseDouble(params.get("eta")),
                         Integer.parseInt(params.get("seed")) != -1 ? new Random(Integer.parseInt(params.get("seed"))) : null,
-                        params.containsKey("actFun") ? HebbianPerceptronOutputModel.ActivationFunction.valueOf(params.get("actFun").toUpperCase()) : HebbianPerceptronOutputModel.ActivationFunction.TANH,
+                        params.containsKey("actFun") ? HebbianMultilayerPerceptronIncomingModel.ActivationFunction.valueOf(params.get("actFun").toUpperCase()) : HebbianMultilayerPerceptronIncomingModel.ActivationFunction.TANH,
                         Double.parseDouble(params.get("ratio")),
                         Integer.parseInt(params.get("nLayers")),
                         params.containsKey("min") && params.containsKey("max") ? new double[]{Double.parseDouble(params.get("min").replace("n","-")),Double.parseDouble(params.get("max")) } : null

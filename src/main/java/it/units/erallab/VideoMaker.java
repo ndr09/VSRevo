@@ -16,16 +16,19 @@
 
 package it.units.erallab;
 
+import it.units.erallab.hmsrobots.core.objects.Ground;
 import it.units.erallab.hmsrobots.core.objects.Robot;
+import it.units.erallab.hmsrobots.core.objects.Voxel;
+import it.units.erallab.hmsrobots.core.sensors.Lidar;
 import it.units.erallab.hmsrobots.tasks.locomotion.Locomotion;
 import it.units.erallab.hmsrobots.util.Grid;
 import it.units.erallab.hmsrobots.util.RobotUtils;
 import it.units.erallab.hmsrobots.util.SerializationUtils;
-import it.units.erallab.hmsrobots.viewers.*;
-import it.units.erallab.hmsrobots.viewers.drawers.Ground;
-import it.units.erallab.hmsrobots.viewers.drawers.Lidar;
-import it.units.erallab.hmsrobots.viewers.drawers.SensorReading;
-import it.units.erallab.hmsrobots.viewers.drawers.Voxel;
+
+import it.units.erallab.hmsrobots.viewers.GridFileWriter;
+import it.units.erallab.hmsrobots.viewers.GridOnlineViewer;
+import it.units.erallab.hmsrobots.viewers.GridSnapshotListener;
+import it.units.erallab.hmsrobots.viewers.VideoUtils;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
@@ -143,42 +146,7 @@ public class VideoMaker {
     ScheduledExecutorService uiExecutor = Executors.newScheduledThreadPool(4);
     ExecutorService executor = Executors.newCachedThreadPool();
     GridSnapshotListener gridSnapshotListener = null;
-    if (outputFileName == null) {
-      gridSnapshotListener = new GridOnlineViewer(
-          Grid.create(namedRobotGrid, p -> p == null ? null : p.getLeft()),
-          uiExecutor
-      );
-      ((GridOnlineViewer) gridSnapshotListener).start(3);
-    } else {
-      try {
-        gridSnapshotListener = new GridFileWriter(
-            w, h, startTime, frameRate, VideoUtils.EncoderFacility.valueOf(encoderName.toUpperCase()),
-            new File(outputFileName),
-            Grid.create(namedRobotGrid, p -> p == null ? null : p.getLeft()),
-            GraphicsDrawer.build().setConfigurable("drawers", List.of(
-                it.units.erallab.hmsrobots.viewers.drawers.Robot.build(),
-                Voxel.build(),
-                Ground.build(),
-                SensorReading.build(),
-                Lidar.build()
-            )).setConfigurable("generalRenderingModes", Set.of(
-                GraphicsDrawer.GeneralRenderingMode.TIME_INFO,
-                GraphicsDrawer.GeneralRenderingMode.VOXEL_COMPOUND_CENTERS_INFO
 
-            ))
-        );
-      } catch (IOException e) {
-        L.severe(String.format("Cannot build grid file writer: %s", e));
-        System.exit(-1);
-      }
-    }
-    GridEpisodeRunner<Robot<?>> runner = new GridEpisodeRunner<>(
-        namedRobotGrid,
-        locomotion,
-        gridSnapshotListener,
-        executor
-    );
-    runner.run();
     if (outputFileName != null) {
       executor.shutdownNow();
       uiExecutor.shutdownNow();

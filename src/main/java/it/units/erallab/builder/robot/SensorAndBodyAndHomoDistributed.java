@@ -155,10 +155,10 @@ public class SensorAndBodyAndHomoDistributed implements PrototypedFunctionBuilde
     if (voxelPrototype.getSensors().isEmpty()) {
       throw new IllegalArgumentException("Target robot has no sensors");
     }
-    if (voxelPrototype.getSensors().stream().mapToInt(s -> s.domains().length).distinct().count() != 1) {
+    if (voxelPrototype.getSensors().stream().mapToInt(s -> s.getDomains().length).distinct().count() != 1) {
       throw new IllegalArgumentException(String.format(
           "Target robot has sensors with different number of outputs: %s",
-          voxelPrototype.getSensors().stream().mapToInt(s -> s.domains().length).distinct()
+          voxelPrototype.getSensors().stream().mapToInt(s -> s.getDomains().length).distinct()
       ));
     }
     return voxelPrototype.getSensors();
