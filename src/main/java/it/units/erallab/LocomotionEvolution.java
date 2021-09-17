@@ -104,24 +104,25 @@ public class LocomotionEvolution extends Worker {
         double validationEpisodeTransientTime = d(a("validationEpisodeTransientTime", Double.toString(episodeTransientTime)));
         double videoEpisodeTime = d(a("videoEpisodeTime", "10"));
         double videoEpisodeTransientTime = d(a("videoEpisodeTransientTime", "0"));
-        int nEvals = i(a("nEvals", "8"));
+        int nEvals = i(a("nEvals", "20"));
         int seed = i(a("seed", "0"));
         String experimentName = a("expName", "short");
-        List<String> terrainNames = l(a("terrain", "hilly-3-30-0"));//"hilly-1-10-rnd"));
+        List<String> terrainNames = l(a("terrain", "hilly-3-30-rnd"));//"hilly-1-10-rnd"));
         List<String> targetShapeNames = l(a("shape", "biped-4x3"));
         List<String> targetSensorConfigNames = l(a("sensorConfig", "high_biped-0.01-f"));
         List<String> transformationNames = l(a("transformation", "identity"));
         //"auroraVat-(?<sigma>\\d+(\\.\\d+)?)-(?<ms>\\d+)-(?<nPop>\\d+)-(?<bs>\\d+)-(?<nc_target>\\d+)"; auroraVat-0.1-4-1-1-10-0
         //ES-40-0.35  auroraVat-0.1-4-1-1-1-0 auroraVat-0.1-2-1-1-1-0-robot_center
-        List<String> evolverNames = l(a("evolver", "ES-4-0.35"));
+        List<String> evolverNames = l(a("evolver", "mewe-0.1-15-500-19-spectrum"));
         //HLP-(?<type>(full|output))-(?<eta>\d+(\.\d+)?)(-(?<actFun>(tanh|sigmoid|relu)))?(-(?<seed>\d+)))?
         //HLP-(?<type>(full|output))-(?<eta>\\d+(\\.\\d+)?)(-(?<actFun>(tanh|sigmoid|relu)))-(?<ratio>\\d+(\\.\\d+)?)-(?<nLayers>\\d+)?(-(?<seed>\\d+))
         //HLP-(?<type>(full|output))-(?<eta>\\d+(\\.\\d+)?)(-(?<actFun>(tanh|sigmoid|relu)))-(?<ratio>\\d+(\\.\\d+)?)-(?<nLayers>\\d+)?(-(?<min>\\d+(\\.\\d+)?))?(-(?<max>\\d+(\\.\\d+)?))?(-(?<seed>\\d+))";
-        List<String> mapperNames = l(a("mapper", "fixedCentralized<HLP-full-0.1-tanh-1-1--1--2-2"));
+        //HLP-output-0.001-tanh-1-1--1-1-1
+        List<String> mapperNames = l(a("mapper", "fixedCentralized<MLP-0-1-tanh"));
         String lastFileName = a("lastFile", null);
         String bestFileName = a("bestFile", null);
         String allFileName = a("allFile", null);
-        String allMEFileName = a("allMEFile", null);
+        String allMEFileName = a("allMEFile", "test");
         String validationFileName = a("validationFile", "val.txt");
         boolean deferred = a("deferred", "true").startsWith("t");
         String telegramBotId = a("telegramBotId", null);
@@ -209,13 +210,14 @@ public class LocomotionEvolution extends Worker {
                                     NamedFunction.then(f("event", Pair::first), keysFunctions),
                                     NamedFunction.then(f("event", Pair::first), basicFunctions),
                                     NamedFunction.then(f("individual", Pair::second), basicIndividualFunctions),
+                                    NamedFunction.then(as(Outcome.class).of(fitness()).of(Pair::second), detailedOutcomeFunctions),
                                     NamedFunction.then(f("individual", Pair::second), Utils.serializationFunction(serializationFlags.contains("all")))
                             )),
                             new File(allMEFileName)
                     )
             ));
         }
-        /*if (allMEFileName != null) {
+        if (allMEFileName != null) {
             factory = factory.and(Listener.Factory.forEach(
                     event -> event.getRemovedPop().all().stream()
                             .map(i -> Pair.of(event, i))
@@ -225,12 +227,13 @@ public class LocomotionEvolution extends Worker {
                                     NamedFunction.then(f("event", Pair::first), keysFunctions),
                                     NamedFunction.then(f("event", Pair::first), basicFunctions),
                                     NamedFunction.then(f("individual", Pair::second), basicIndividualFunctions),
+                                    NamedFunction.then(as(Outcome.class).of(fitness()).of(Pair::second), detailedOutcomeFunctions),
                                     NamedFunction.then(f("individual", Pair::second), Utils.serializationFunction(serializationFlags.contains("all")))
                             )),
                             new File("removed.txt")
                     )
             ));
-        }*/
+        }
         //validation listener
         if (validationFileName != null) {
             if (!validationTerrainNames.isEmpty() && validationTransformationNames.isEmpty()) {
@@ -438,7 +441,7 @@ public class LocomotionEvolution extends Worker {
         String sensorAndBodyAndHomoDistributed = "sensorAndBodyAndHomoDist-(?<fullness>\\d+(\\.\\d+)?)-(?<nSignals>\\d+)-(?<nLayers>\\d+)-(?<position>(t|f))";
         String sensorCentralized = "sensorCentralized-(?<nLayers>\\d+)";
         String mlp = "MLP-(?<ratio>\\d+(\\.\\d+)?)-(?<nLayers>\\d+)(-(?<actFun>(sin|tanh|sigmoid|relu)))?";
-        String hlp = "HLP-(?<type>(full|output))-(?<eta>\\d+(\\.\\d+)?)(-(?<actFun>(tanh|sigmoid|relu)))-(?<ratio>\\d+(\\.\\d+)?)-(?<nLayers>\\d+)-(?<seed>-?\\d+)?(-(?<min>-?\\d+(\\.\\d+)?))?(-(?<max>\\d+(\\.\\d+)?))";
+        String hlp = "HLP-(?<type>(full|output))-(?<eta>\\d+(\\.\\d+)?)(-(?<actFun>(tanh|sigmoid|relu)))-(?<ratio>\\d+(\\.\\d+)?)-(?<nLayers>\\d+)-(?<seed>-?\\d+)(-(?<min>-?\\d+(\\.\\d+)?))?(-(?<max>\\d+(\\.\\d+)?))?";
         String pruningMlp = "pMLP-(?<ratio>\\d+(\\.\\d+)?)-(?<nLayers>\\d+)-(?<actFun>(sin|tanh|sigmoid|relu))-(?<pruningTime>\\d+(\\.\\d+)?)-(?<pruningRate>0(\\.\\d+)?)-(?<criterion>(weight|abs_signal_mean|random))";
         String directNumGrid = "directNumGrid";
         String functionNumGrid = "functionNumGrid";
@@ -524,6 +527,7 @@ public class LocomotionEvolution extends Worker {
             );
         }
         if ((params = params(hlp, name)) != null) {
+
             if (params.get("type").equals("full")) {
                 return new HLPFull(
                         Double.parseDouble(params.get("eta")),

@@ -23,7 +23,7 @@ public class SensorCentralized implements PrototypedFunctionBuilder<List<TimedRe
   public Function<List<TimedRealFunction>, Robot<? extends SensingVoxel>> buildFor(Robot<? extends SensingVoxel> robot) {
     List<Sensor> prototypeSensors = SensorAndBodyAndHomoDistributed.getPrototypeSensors(robot);
     int nOfVoxels = (int) robot.getVoxels().values().stream().filter(Objects::nonNull).count();
-    int sensorDim = prototypeSensors.get(0).domains().length;
+    int sensorDim = prototypeSensors.get(0).getDomains().length;
     return pair -> {
       if (pair.size() != 2) {
         throw new IllegalArgumentException(String.format(
@@ -83,7 +83,7 @@ public class SensorCentralized implements PrototypedFunctionBuilder<List<TimedRe
   public List<TimedRealFunction> exampleFor(Robot<? extends SensingVoxel> robot) {
     List<Sensor> prototypeSensors = SensorAndBodyAndHomoDistributed.getPrototypeSensors(robot);
     int nOfVoxels = (int) robot.getVoxels().values().stream().filter(Objects::nonNull).count();
-    int sensorDim = prototypeSensors.get(0).domains().length;
+    int sensorDim = prototypeSensors.get(0).getDomains().length;
     return List.of(
         RealFunction.build(d -> d, 2, prototypeSensors.size()),
         RealFunction.build(d -> d, nOfVoxels * sensorDim, nOfVoxels)

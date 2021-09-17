@@ -22,10 +22,6 @@ import it.units.erallab.hmsrobots.util.Grid;
 import it.units.erallab.hmsrobots.util.RobotUtils;
 import it.units.erallab.hmsrobots.util.SerializationUtils;
 import it.units.erallab.hmsrobots.viewers.*;
-import it.units.erallab.hmsrobots.viewers.drawers.Ground;
-import it.units.erallab.hmsrobots.viewers.drawers.Lidar;
-import it.units.erallab.hmsrobots.viewers.drawers.SensorReading;
-import it.units.erallab.hmsrobots.viewers.drawers.Voxel;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
@@ -89,9 +85,9 @@ public class VideoMaker {
       System.exit(-1);
     }
     L.info(String.format("Read %d data lines from %s with columns %s",
-        records.size(),
-        (inputFileName != null) ? inputFileName : "stdin",
-        headers
+            records.size(),
+            (inputFileName != null) ? inputFileName : "stdin",
+            headers
     ));
     //check columns
     if (headers.size() < 3) {
@@ -106,44 +102,44 @@ public class VideoMaker {
     String xHeader = headers.get(0);
     String yHeader = headers.get(1);
     List<String> xValues = records.stream()
-        .map(r -> r.get(xHeader))
-        .distinct()
-        .collect(Collectors.toList());
+            .map(r -> r.get(xHeader))
+            .distinct()
+            .collect(Collectors.toList());
     List<String> yValues = records.stream()
-        .map(r -> r.get(yHeader))
-        .distinct()
-        .collect(Collectors.toList());
+            .map(r -> r.get(yHeader))
+            .distinct()
+            .collect(Collectors.toList());
     //build grid
     List<CSVRecord> finalRecords = records;
     Grid<List<String>> rawGrid = Grid.create(
-        xValues.size(),
-        yValues.size(),
-        (x, y) -> finalRecords.stream()
-            .filter(r -> r.get(xHeader).equals(xValues.get(x)) && r.get(yHeader).equals(yValues.get(y)))
-            .map(r -> r.get(serializedRobotColumn))
-            .collect(Collectors.toList())
+            xValues.size(),
+            yValues.size(),
+            (x, y) -> finalRecords.stream()
+                    .filter(r -> r.get(xHeader).equals(xValues.get(x)) && r.get(yHeader).equals(yValues.get(y)))
+                    .map(r -> r.get(serializedRobotColumn))
+                    .collect(Collectors.toList())
     );
     //build named grid of robots
     Grid<Pair<String, Robot<?>>> namedRobotGrid = Grid.create(
-        rawGrid.getW(),
-        rawGrid.getH(),
-        (x, y) -> rawGrid.get(x, y).isEmpty() ? null : Pair.of(
-            xValues.get(x) + " " + yValues.get(y),
-            RobotUtils.buildRobotTransformation(transformationName, new Random(0))
-                .apply(SerializationUtils.deserialize(rawGrid.get(x, y).get(0), Robot.class, mode))
-        )
+            rawGrid.getW(),
+            rawGrid.getH(),
+            (x, y) -> rawGrid.get(x, y).isEmpty() ? null : Pair.of(
+                    xValues.get(x) + " " + yValues.get(y),
+                    RobotUtils.buildRobotTransformation(transformationName, new Random(0))
+                            .apply(SerializationUtils.deserialize(rawGrid.get(x, y).get(0), Robot.class, mode))
+            )
     );
     //prepare problem
     Locomotion locomotion = new Locomotion(
-        endTime,
-        Locomotion.createTerrain(terrainName),
-        new Settings()
+            endTime,
+            Locomotion.createTerrain(terrainName),
+            new Settings()
     );
     //do simulations
     ScheduledExecutorService uiExecutor = Executors.newScheduledThreadPool(4);
     ExecutorService executor = Executors.newCachedThreadPool();
     GridSnapshotListener gridSnapshotListener = null;
-    if (outputFileName == null) {
+    /*if (outputFileName == null) {
       gridSnapshotListener = new GridOnlineViewer(
           Grid.create(namedRobotGrid, p -> p == null ? null : p.getLeft()),
           uiExecutor
@@ -183,6 +179,7 @@ public class VideoMaker {
       executor.shutdownNow();
       uiExecutor.shutdownNow();
     }
+  }*/
   }
 
 }
