@@ -100,6 +100,6 @@ public class AuroraVatBuilder implements EvolverBuilder<List<Double>> {
                 builder.buildFor(target), getFitness,
                 getData, setDesc, new FixedLengthListFactory<>(length, new UniformDoubleFactory(-1d, 1d)),
                 comparator.comparing(Individual::getFitness),
-                mutation, population_size, map_size, 15, 1, batch_size, nc_target, 25, 10, seed,fs, helps );
+                mutation, population_size, map_size, 15, 1, batch_size, nc_target, 25, 1, seed,fs, helps );
     }
 }

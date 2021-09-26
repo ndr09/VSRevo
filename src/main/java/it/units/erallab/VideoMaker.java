@@ -16,12 +16,24 @@
 
 package it.units.erallab;
 
+import it.units.erallab.hmsrobots.core.geometry.BoundingBox;
+import it.units.erallab.hmsrobots.core.objects.Ground;
 import it.units.erallab.hmsrobots.core.objects.Robot;
+import it.units.erallab.hmsrobots.core.objects.Voxel;
+import it.units.erallab.hmsrobots.core.sensors.Lidar;
+import it.units.erallab.hmsrobots.core.snapshots.MLPState;
 import it.units.erallab.hmsrobots.tasks.locomotion.Locomotion;
 import it.units.erallab.hmsrobots.util.Grid;
 import it.units.erallab.hmsrobots.util.RobotUtils;
 import it.units.erallab.hmsrobots.util.SerializationUtils;
-import it.units.erallab.hmsrobots.viewers.*;
+import it.units.erallab.hmsrobots.viewers.GridFileWriter;
+import it.units.erallab.hmsrobots.viewers.GridOnlineViewer;
+import it.units.erallab.hmsrobots.viewers.GridSnapshotListener;
+import it.units.erallab.hmsrobots.viewers.VideoUtils;
+import it.units.erallab.hmsrobots.viewers.drawers.Drawer;
+import it.units.erallab.hmsrobots.viewers.drawers.Drawers;
+import it.units.erallab.hmsrobots.viewers.drawers.MLPDrawer;
+import it.units.erallab.hmsrobots.viewers.drawers.SubtreeDrawer;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
@@ -33,6 +45,7 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Function;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -43,143 +56,121 @@ import static it.units.malelab.jgea.core.util.Args.*;
  */
 public class VideoMaker {
 
-  private static final Logger L = Logger.getLogger(VideoMaker.class.getName());
+    private static final Logger L = Logger.getLogger(VideoMaker.class.getName());
 
-  public static void main(String[] args) {
-    //get params
-    String inputFileName = a(args, "inputFile", "vid.txt");
-    String outputFileName = a(args, "outputFile", "pca.mp4");
-    String serializedRobotColumn = a(args, "serializedRobotColumnName", "best.serialized.robot");
-    String terrainName = a(args, "terrain", "hilly-3-30-0");
-    String transformationName = a(args, "transformation", "identity");
-    double startTime = d(a(args, "startTime", "0.0"));
-    double endTime = d(a(args, "endTime", "60.0"));
-    int w = i(a(args, "w", "400"));
-    int h = i(a(args, "h", "300"));
-    int frameRate = i(a(args, "frameRate", "30"));
-    String encoderName = a(args, "encoder", VideoUtils.EncoderFacility.JCODEC.name());
-    SerializationUtils.Mode mode = SerializationUtils.Mode.valueOf(a(args, "deserializationMode", SerializationUtils.Mode.GZIPPED_JSON.name()).toUpperCase());
-    //read data
-    Reader reader = null;
-    List<CSVRecord> records = null;
-    List<String> headers = null;
-    try {
-      if (inputFileName != null) {
-        reader = new FileReader(inputFileName);
-      } else {
-        reader = new InputStreamReader(System.in);
-      }
-      CSVParser csvParser = CSVFormat.DEFAULT.withDelimiter(';').withFirstRecordAsHeader().parse(reader);
-      records = csvParser.getRecords();
-      headers = csvParser.getHeaderNames();
-      reader.close();
-    } catch (IOException e) {
-      L.severe(String.format("Cannot read input data: %s", e));
-      if (reader != null) {
+    public static void main(String[] args) {
+        //get params
+        String inputFileName = a(args, "inputFile", "vid.txt");
+        String outputFileName = a(args, "outputFile", "pca_new_flat.mp4");
+        String serializedRobotColumn = a(args, "serializedRobotColumnName", "best.serialized.robot");
+        String terrainName = a(args, "terrain", "flat");
+        String transformationName = a(args, "transformation", "identity");
+        double startTime = d(a(args, "startTime", "0.0"));
+        double endTime = d(a(args, "endTime", "60.0"));
+        int w = i(a(args, "w", "600"));
+        int h = i(a(args, "h", "400"));
+        int frameRate = i(a(args, "frameRate", "30"));
+        String encoderName = a(args, "encoder", VideoUtils.EncoderFacility.JCODEC.name());
+        SerializationUtils.Mode mode = SerializationUtils.Mode.valueOf(a(args, "deserializationMode", SerializationUtils.Mode.GZIPPED_JSON.name()).toUpperCase());
+        //read data
+        Reader reader = null;
+        List<CSVRecord> records = null;
+        List<String> headers = null;
         try {
-          reader.close();
-        } catch (IOException ioException) {
-          //ignore
+            if (inputFileName != null) {
+                reader = new FileReader(inputFileName);
+            } else {
+                reader = new InputStreamReader(System.in);
+            }
+            CSVParser csvParser = CSVFormat.DEFAULT.withDelimiter(';').withFirstRecordAsHeader().parse(reader);
+            records = csvParser.getRecords();
+            headers = csvParser.getHeaderNames();
+            reader.close();
+        } catch (IOException e) {
+            L.severe(String.format("Cannot read input data: %s", e));
+            if (reader != null) {
+                try {
+                    reader.close();
+                } catch (IOException ioException) {
+                    //ignore
+                }
+            }
+            System.exit(-1);
         }
-      }
-      System.exit(-1);
-    }
-    L.info(String.format("Read %d data lines from %s with columns %s",
-            records.size(),
-            (inputFileName != null) ? inputFileName : "stdin",
-            headers
-    ));
-    //check columns
-    if (headers.size() < 3) {
-      L.severe(String.format("Found %d columns: expected 3 or more", headers.size()));
-      System.exit(-1);
-    }
-    if (!headers.contains(serializedRobotColumn)) {
-      L.severe(String.format("Cannot find serialized robot column %s in %s", serializedRobotColumn, headers));
-      System.exit(-1);
-    }
-    //find x- and y- values
-    String xHeader = headers.get(0);
-    String yHeader = headers.get(1);
-    List<String> xValues = records.stream()
-            .map(r -> r.get(xHeader))
-            .distinct()
-            .collect(Collectors.toList());
-    List<String> yValues = records.stream()
-            .map(r -> r.get(yHeader))
-            .distinct()
-            .collect(Collectors.toList());
-    //build grid
-    List<CSVRecord> finalRecords = records;
-    Grid<List<String>> rawGrid = Grid.create(
-            xValues.size(),
-            yValues.size(),
-            (x, y) -> finalRecords.stream()
-                    .filter(r -> r.get(xHeader).equals(xValues.get(x)) && r.get(yHeader).equals(yValues.get(y)))
-                    .map(r -> r.get(serializedRobotColumn))
-                    .collect(Collectors.toList())
-    );
-    //build named grid of robots
-    Grid<Pair<String, Robot<?>>> namedRobotGrid = Grid.create(
-            rawGrid.getW(),
-            rawGrid.getH(),
-            (x, y) -> rawGrid.get(x, y).isEmpty() ? null : Pair.of(
-                    xValues.get(x) + " " + yValues.get(y),
-                    RobotUtils.buildRobotTransformation(transformationName, new Random(0))
-                            .apply(SerializationUtils.deserialize(rawGrid.get(x, y).get(0), Robot.class, mode))
-            )
-    );
-    //prepare problem
-    Locomotion locomotion = new Locomotion(
-            endTime,
-            Locomotion.createTerrain(terrainName),
-            new Settings()
-    );
-    //do simulations
-    ScheduledExecutorService uiExecutor = Executors.newScheduledThreadPool(4);
-    ExecutorService executor = Executors.newCachedThreadPool();
-    GridSnapshotListener gridSnapshotListener = null;
-    /*if (outputFileName == null) {
-      gridSnapshotListener = new GridOnlineViewer(
-          Grid.create(namedRobotGrid, p -> p == null ? null : p.getLeft()),
-          uiExecutor
-      );
-      ((GridOnlineViewer) gridSnapshotListener).start(3);
-    } else {
-      try {
-        gridSnapshotListener = new GridFileWriter(
-            w, h, startTime, frameRate, VideoUtils.EncoderFacility.valueOf(encoderName.toUpperCase()),
-            new File(outputFileName),
-            Grid.create(namedRobotGrid, p -> p == null ? null : p.getLeft()),
-            GraphicsDrawer.build().setConfigurable("drawers", List.of(
-                it.units.erallab.hmsrobots.viewers.drawers.Robot.build(),
-                Voxel.build(),
-                Ground.build(),
-                SensorReading.build(),
-                Lidar.build()
-            )).setConfigurable("generalRenderingModes", Set.of(
-                GraphicsDrawer.GeneralRenderingMode.TIME_INFO,
-                GraphicsDrawer.GeneralRenderingMode.VOXEL_COMPOUND_CENTERS_INFO
-
-            ))
+        L.info(String.format("Read %d data lines from %s with columns %s",
+                records.size(),
+                (inputFileName != null) ? inputFileName : "stdin",
+                headers
+        ));
+        //check columns
+        if (headers.size() < 3) {
+            L.severe(String.format("Found %d columns: expected 3 or more", headers.size()));
+            System.exit(-1);
+        }
+        if (!headers.contains(serializedRobotColumn)) {
+            L.severe(String.format("Cannot find serialized robot column %s in %s", serializedRobotColumn, headers));
+            System.exit(-1);
+        }
+        //find x- and y- values
+        String xHeader = headers.get(0);
+        String yHeader = headers.get(1);
+        List<String> xValues = records.stream()
+                .map(r -> r.get(xHeader))
+                .distinct()
+                .collect(Collectors.toList());
+        List<String> yValues = records.stream()
+                .map(r -> r.get(yHeader))
+                .distinct()
+                .collect(Collectors.toList());
+        //build grid
+        List<CSVRecord> finalRecords = records;
+        Grid<List<String>> rawGrid = Grid.create(
+                xValues.size(),
+                yValues.size(),
+                (x, y) -> finalRecords.stream()
+                        .filter(r -> r.get(xHeader).equals(xValues.get(x)) && r.get(yHeader).equals(yValues.get(y)))
+                        .map(r -> r.get(serializedRobotColumn))
+                        .collect(Collectors.toList())
         );
-      } catch (IOException e) {
-        L.severe(String.format("Cannot build grid file writer: %s", e));
-        System.exit(-1);
-      }
-    }
-    GridEpisodeRunner<Robot<?>> runner = new GridEpisodeRunner<>(
-        namedRobotGrid,
-        locomotion,
-        gridSnapshotListener,
-        executor
-    );
-    runner.run();
-    if (outputFileName != null) {
-      executor.shutdownNow();
-      uiExecutor.shutdownNow();
-    }
-  }*/
-  }
+        //build named grid of robots
+        Grid<Pair<String, Robot<?>>> namedRobotGrid = Grid.create(
+                rawGrid.getW(),
+                rawGrid.getH(),
+                (x, y) -> rawGrid.get(x, y).isEmpty() ? null : Pair.of(
+                        xValues.get(x) + " " + yValues.get(y),
+                        RobotUtils.buildRobotTransformation(transformationName, new Random(0))
+                                .apply(SerializationUtils.deserialize(rawGrid.get(x, y).get(0), Robot.class, mode))
+                )
+        );
+        //prepare problem
+        Locomotion locomotion = new Locomotion(
+                endTime,
+                Locomotion.createTerrain(terrainName),
+                new Settings()
+        );
+        //do simulations
+        ScheduledExecutorService uiExecutor = Executors.newScheduledThreadPool(4);
+        ExecutorService executor = Executors.newCachedThreadPool();
+        GridSnapshotListener gridSnapshotListener = null;
+        Function<String, Drawer> drawerSupplier = s -> Drawer.of(
+                Drawer.clip(
+                        BoundingBox.build(0d, 0d, 1d, 1d),
+                        Drawers.basicWithMiniWorld(s)
+                )
+        );
+        System.out.println(namedRobotGrid.get(0,0));
+        try {
+            GridFileWriter.save(
+                    locomotion,
+                    namedRobotGrid,
+                    400, 400, 1, 24,
+                    VideoUtils.EncoderFacility.JCODEC,
+                    new File(outputFileName),
+                    drawerSupplier
+            );
 
-}
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    }

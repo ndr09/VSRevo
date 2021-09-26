@@ -28,6 +28,7 @@ import it.units.erallab.builder.robot.*;
 import it.units.erallab.hmsrobots.Pyworker;
 import it.units.erallab.hmsrobots.core.controllers.HebbianPerceptronFullModel;
 import it.units.erallab.hmsrobots.core.controllers.HebbianPerceptronOutputModel;
+import it.units.erallab.hmsrobots.core.controllers.HebbianPerceptronOutputModel;
 import it.units.erallab.hmsrobots.core.controllers.MultiLayerPerceptron;
 import it.units.erallab.hmsrobots.core.controllers.PruningMultiLayerPerceptron;
 import it.units.erallab.hmsrobots.core.objects.Robot;
@@ -39,6 +40,7 @@ import it.units.malelab.jgea.core.Individual;
 import it.units.malelab.jgea.core.evolver.AuroraVAT;
 import it.units.malelab.jgea.core.evolver.Event;
 import it.units.malelab.jgea.core.evolver.Evolver;
+import it.units.malelab.jgea.core.evolver.MapElitesWithEvolvabilityEvolver;
 import it.units.malelab.jgea.core.evolver.stopcondition.FitnessEvaluations;
 import it.units.malelab.jgea.core.listener.*;
 import it.units.malelab.jgea.core.listener.telegram.TelegramUpdater;
@@ -98,7 +100,7 @@ public class LocomotionEvolution extends Worker {
         int spectrumSize = 2;
         double spectrumMinFreq = 0d;
         double spectrumMaxFreq = 5d;
-        double episodeTime = d(a("episodeTime", "60"));
+        double episodeTime = d(a("episodeTime", "1"));
         double episodeTransientTime = d(a("episodeTransientTime", "0"));
         double validationEpisodeTime = d(a("validationEpisodeTime", Double.toString(episodeTime)));
         double validationEpisodeTransientTime = d(a("validationEpisodeTransientTime", Double.toString(episodeTransientTime)));
@@ -112,8 +114,9 @@ public class LocomotionEvolution extends Worker {
         List<String> targetSensorConfigNames = l(a("sensorConfig", "high_biped-0.01-f"));
         List<String> transformationNames = l(a("transformation", "identity"));
         //"auroraVat-(?<sigma>\\d+(\\.\\d+)?)-(?<ms>\\d+)-(?<nPop>\\d+)-(?<bs>\\d+)-(?<nc_target>\\d+)"; auroraVat-0.1-4-1-1-10-0
-        //ES-40-0.35  auroraVat-0.1-4-1-1-1-0 auroraVat-0.1-2-1-1-1-0-robot_center
-        List<String> evolverNames = l(a("evolver", "mewe-0.1-15-500-19-spectrum"));
+        //ES-40-0.35  auroraVat-0.1-4-1-1-1-0 auroraVat-0.1-2-2-2-4-0-robot_center
+        // mewe-0.1-10-500-19-spectrum
+        List<String> evolverNames = l(a("evolver", "mewe-0.1-2-4-4-spectrum-crowdedness"));
         //HLP-(?<type>(full|output))-(?<eta>\d+(\.\d+)?)(-(?<actFun>(tanh|sigmoid|relu)))?(-(?<seed>\d+)))?
         //HLP-(?<type>(full|output))-(?<eta>\\d+(\\.\\d+)?)(-(?<actFun>(tanh|sigmoid|relu)))-(?<ratio>\\d+(\\.\\d+)?)-(?<nLayers>\\d+)?(-(?<seed>\\d+))
         //HLP-(?<type>(full|output))-(?<eta>\\d+(\\.\\d+)?)(-(?<actFun>(tanh|sigmoid|relu)))-(?<ratio>\\d+(\\.\\d+)?)-(?<nLayers>\\d+)?(-(?<min>\\d+(\\.\\d+)?))?(-(?<max>\\d+(\\.\\d+)?))?(-(?<seed>\\d+))";
@@ -217,6 +220,7 @@ public class LocomotionEvolution extends Worker {
                     )
             ));
         }
+
         if (allMEFileName != null) {
             factory = factory.and(Listener.Factory.forEach(
                     event -> event.getRemovedPop().all().stream()
@@ -230,7 +234,7 @@ public class LocomotionEvolution extends Worker {
                                     NamedFunction.then(as(Outcome.class).of(fitness()).of(Pair::second), detailedOutcomeFunctions),
                                     NamedFunction.then(f("individual", Pair::second), Utils.serializationFunction(serializationFlags.contains("all")))
                             )),
-                            new File("removed.txt")
+                            new File(allMEFileName.split("\\.")[0]+"_secondPops.txt")
                     )
             ));
         }
@@ -378,6 +382,10 @@ public class LocomotionEvolution extends Worker {
         String numGASpeciated = "numGASpec-(?<nPop>\\d+)-(?<nSpecies>\\d+)-(?<criterion>(" + Arrays.stream(DoublesSpeciated.SpeciationCriterion.values()).map(c -> c.name().toLowerCase(Locale.ROOT)).collect(Collectors.joining("|")) + "))";
         String cmaES = "CMAES";
         String mapElites = "mapElites-(?<sigma>\\d+(\\.\\d+)?)-(?<ms>\\d+)-(?<nPop>\\d+)-(?<bs>\\d+)-(?<criterion>(" + Arrays.stream(DoublesSpeciated.SpeciationCriterion.values()).map(c -> c.name().toLowerCase(Locale.ROOT)).collect(Collectors.joining("|")) + "))";
+        String mewe = "mewe-(?<sigma>\\d+(\\.\\d+)?)-(?<ms>\\d+)-(?<nPop>\\d+)-(?<bs>\\d+)-" +
+                "(?<criterion>(" + Arrays.stream(DoublesSpeciated.SpeciationCriterion.values()).map(c -> c.name().toLowerCase(Locale.ROOT)).collect(Collectors.joining("|")) + "))" +
+                "-(?<sf>(uniform|crowdedness))";
+
         String auroraVat = "auroraVat-(?<sigma>\\d+(\\.\\d+)?)-(?<ms>\\d+)-(?<nPop>\\d+)-(?<bs>\\d+)-(?<nctarget>\\d+)-(?<seed>\\d+)-(?<criterion>(robot_center|voxels_center|knn))";
         String eS = "ES-(?<nPop>\\d+)-(?<sigma>\\d+(\\.\\d+)?)";
         Map<String, String> params;
@@ -399,6 +407,16 @@ public class LocomotionEvolution extends Worker {
                     Integer.parseInt(params.get("ms")),
                     Integer.parseInt(params.get("nPop")),
                     Integer.parseInt(params.get("bs")));
+        }
+
+        if ((params = params(mewe, name)) != null) {
+            return new MapElitesWithEvolvabiltyBuilder(
+                    MapElitesBuilder.SpeciationCriterion.valueOf(params.get("criterion").toUpperCase()),
+                    new GaussianMutation(Double.parseDouble(params.get("sigma"))),
+                    Integer.parseInt(params.get("ms")),
+                    Integer.parseInt(params.get("nPop")),
+                    Integer.parseInt(params.get("bs")),
+                    MapElitesWithEvolvabilityEvolver.SelectionStrategies.valueOf(params.get("sf").toUpperCase()));
         }
 
         if ((params = params(numGA, name)) != null) {
