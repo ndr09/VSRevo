@@ -99,10 +99,10 @@ public class MapElitesBuilder implements EvolverBuilder<List<Double>> {
         for(int i=0; i<SPECTRUM_SIZE*2;i++){
             sizes.add(map_size);
         }
+        maxs.add(4d);
         maxs.add(1d);
-        maxs.add(5d);
+        maxs.add(4d);
         maxs.add(1d);
-        maxs.add(3d);
 
         mins.add(0d);
         mins.add(0d);

@@ -116,7 +116,7 @@ public class LocomotionEvolution extends Worker {
         //"auroraVat-(?<sigma>\\d+(\\.\\d+)?)-(?<ms>\\d+)-(?<nPop>\\d+)-(?<bs>\\d+)-(?<nc_target>\\d+)"; auroraVat-0.1-4-1-1-10-0
         //ES-40-0.35  auroraVat-0.1-4-1-1-1-0 auroraVat-0.1-2-2-2-4-0-robot_center
         // mewe-0.1-10-500-19-spectrum
-        List<String> evolverNames = l(a("evolver", "mewe-0.1-2-4-4-spectrum-crowdedness"));
+        List<String> evolverNames = l(a("evolver", "mewe-0.1-2-4-4-spectrum-uniform"));
         //HLP-(?<type>(full|output))-(?<eta>\d+(\.\d+)?)(-(?<actFun>(tanh|sigmoid|relu)))?(-(?<seed>\d+)))?
         //HLP-(?<type>(full|output))-(?<eta>\\d+(\\.\\d+)?)(-(?<actFun>(tanh|sigmoid|relu)))-(?<ratio>\\d+(\\.\\d+)?)-(?<nLayers>\\d+)?(-(?<seed>\\d+))
         //HLP-(?<type>(full|output))-(?<eta>\\d+(\\.\\d+)?)(-(?<actFun>(tanh|sigmoid|relu)))-(?<ratio>\\d+(\\.\\d+)?)-(?<nLayers>\\d+)?(-(?<min>\\d+(\\.\\d+)?))?(-(?<max>\\d+(\\.\\d+)?))?(-(?<seed>\\d+))";

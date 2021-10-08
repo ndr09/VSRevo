@@ -109,19 +109,20 @@ public class MapElitesWithEvolvabiltyBuilder implements EvolverBuilder<List<Doub
         mins.add(0d);
         mins.add(0d);
         mins.add(0d);
-        BiFunction<Individual<List<Double>, S, F>, Integer, double[]> setEvo = (i, d) ->{
+        BiFunction<Individual<List<Double>, S, F>, Double, double[]> setEvo = (i, d) ->{
             double[] de = new double[1];
             de[0] = d;
             ((Outcome)i.getFitness()).setDesc(de);
             return de;
         };
+        Function<Individual<List<Double>, S, F>, Double> getEvo =   i -> ((Outcome)i.getFitness()).getDesc() == null ? 0d:((Outcome)i.getFitness()).getDesc()[0] ;
         return new MapElitesWithEvolvabilityEvolver<>(
                 descriptor,
                 maxs, mins, sizes,
                 builder.buildFor(target),
                 new FixedLengthListFactory<>(length, new UniformDoubleFactory(-1d, 1d)),
                 comparator.comparing(Individual::getFitness),
-                mutation, population_size, batch_size, i -> ((Outcome)i.getFitness()).getVelocity(),setEvo,sf
+                mutation, population_size, batch_size, i -> ((Outcome)i.getFitness()).getVelocity(),setEvo, getEvo, sf
 
         );
     }
